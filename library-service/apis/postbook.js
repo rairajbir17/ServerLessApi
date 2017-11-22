@@ -1,64 +1,64 @@
-"use strict";
+'use strict';
 
 const uuid = require('uuid');
-const doc = require('dynamodb-doc');
-const dynamoDb = new doc.DynamoDB();
+const AWS = require('aws-sdk'); 
+
+AWS.config.setPromisesDependency(require('bluebird'));
+
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 module.exports.newbook = (event, context, callback) => {
-    const errr = (error, data) => callback(null, {
-        statusCode: error ? 400 : 200,
-        headers: {
-            "x-custom-header" : "custom header value"
-        },
-        body: error ? error.message : JSON.stringify(data)
+  const requestBody = JSON.parse(event.body);
+  const name = requestBody.bookname;
+  const genre = requestBody.genre;
+  const author = requestBody.author;
+
+  if (typeof name !== 'string' || typeof genre !== 'string' || typeof author !== 'string') {
+    console.error('Validation Failed');
+    callback(new Error('Couldn\'t submit book because of validation errors.'));
+    return;
+  }
+
+  submitCandidateP(candidateInfo(name, genre, author))
+    .then(res => {
+      callback(null, {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: `Sucessfully submitted candidate with genre ${genre}`,
+          candidateId: res.id
+        })
+      });
+    })
+    .catch(err => {
+      console.log(err);
+      callback(null, {
+        statusCode: 500,
+        body: JSON.stringify({
+          message: `Unable to submit candidate with genre ${genre}`
+        })
+      })
     });
+};
 
-    const body = JSON.parse(event.body);
 
-    if (body.type === undefined || body.type === null || typeof body.type !== 'string') {
-        return errr(new Error('type not specified or invalid.'));
-    }
-    if (body.title === undefined || body.title === null || typeof body.title !== 'string') {
-        return errr(new Error('title not specified or invalid.'));
-    }
-    if (body.author === undefined || body.author === null || typeof body.author !== 'string') {
-        return errr(new Error('author not specified or invalid.'));
-    }
+const submitCandidateP = candidate => {
+  console.log('Submitting candidate');
+  const candidateInfo = {
+    TableName: process.env.BOOK_TABLE,
+    Item: candidate,
+  };
+  return dynamoDb.put(candidateInfo).promise()
+    .then(res => candidate);
+};
 
-    var newbook = {
-        itemId: uuid.v1(),
-        title: body.title,
-        author: body.author
-    };
-
-    switch (body.type) {
-        case 'book':
-            if (body.publishDate === undefined || body.publishDate === null || typeof body.publishDate !== 'string') {
-                return errr(new Error('publishDate not specified or invalid.'));
-            }
-            newItem.publishDate = body.publishDate;
-            break;
-        case 'video':
-            if (body.videoLength === undefined || body.videoLength === null || typeof body.videoLength !== 'number') {
-                return errr(new Error('length not specified or invalid.'));
-            }
-            newItem.videoLength = body.videoLength;
-            break;
-        default:
-            return errr(new Error('type specified not supported.'));
-    }
-
-    const createParams = {
-        TableName: process.env.TABLE_NAME,
-        Item: newbook,
-        ReturnValues: "ALL_OLD"
-    };
-
-    dynamoDb.putItem(createParams, (err, res) => {
-        if (err) {
-            errr(err);
-        } else {
-            errr(null, { message: "New item added!" });
-        }
-    });
+const candidateInfo = (name, genre, author) => {
+  const timestamp = new Date().getTime();
+  return {
+    book_id: uuid.v1(),
+    name: name,
+    genre: genre,
+    author: author,
+    submittedAt: timestamp,
+    updatedAt: timestamp,
+  };
 };

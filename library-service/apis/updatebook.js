@@ -1,9 +1,13 @@
 'use strict';
 
-const doc = require('dynamodb-doc');
-const dynamoDb = new doc.DynamoDB();
+const uuid = require('uuid');
+const AWS = require('aws-sdk'); 
 
-module.exports.book = (event, context, callback) => {
+AWS.config.setPromisesDependency(require('bluebird'));
+
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+module.exports.update = (event, context, callback) => {
     const errr = (error, data) => callback(null, {
         statusCode: error ? 400 : 200,
         headers: {
@@ -14,50 +18,36 @@ module.exports.book = (event, context, callback) => {
 
     const path = event.pathParameters;
     const body = JSON.parse(event.body);
-    if (path.itemType === undefined || path.itemType === null || typeof path.itemType !== 'string') {
-        return errr(new Error('type in path not specified or invalid.'));
+    if ( typeof path.book_id !== 'string') {
+        return errr(new Error('Id in path not specified or invalid.'));
     }
-    if (path.itemId === undefined || path.itemId === null || typeof path.itemId !== 'string') {
-        return errr(new Error('id in path not specified or invalid.'));
+    if (typeof path.bookname !== 'string') {
+        return errr(new Error('Book Name not specified or invalid.'));
     }
 
-    if (body.title === undefined || body.title === null || typeof body.title !== 'string') {
-        return errr(new Error('title not specified or invalid.'));
+    if ( typeof body.genre !== 'string') {
+        return errr(new Error('Genre not specified or invalid.'));
     }
-    if (body.author === undefined || body.author === null || typeof body.author !== 'string') {
+    if (typeof body.author !== 'string') {
         return errr(new Error('author not specified or invalid.'));
     }
 
-    var updateParams = {
+    var updateParameters = {
         TableName: process.env.TABLE_NAME,
         Key: {
-            "itemId": path.itemId
+            "book_id": path.id
         },
-        UpdateExpression: "set title=:p1, author=:p2",
+        UpdateExpression: "set name=:p1,bookgenre=:p2, bookauthor=:p3",
         ReturnValues: "ALL_NEW"
     };
 
-    switch (path.itemType) {
-        case 'books':
-            if (body.publishDate === undefined || body.publishDate === null || typeof body.publishDate !== 'string') {
-                return errr(new Error('publishDate not specified or invalid.'));
-            }
-            updateParams.UpdateExpression += ", publishDate=:p3";
-            updateParams.ExpressionAttributeValues = {
-                ":p1": body.title,
-                ":p2": body.author,
-                ":p3": body.publishDate
-            };
-            break;
-        default:
-            return errr(new Error('type specified not supported (path).'));
-    }
+ 
 
-    dynamoDb.updateItem(updateParams, (err, data) => {
+    dynamoDb.updateItem(updateParameters, (err, data) => {
         if (err) {
             errr(err);
         } else {
-            errr(null, { message: "Item updated!" });
+            errr(null, { message: "Book Succesfullly updated" });
         }
     })
 };

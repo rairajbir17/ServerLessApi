@@ -1,9 +1,16 @@
 'use strict';
 
-module.exports.list = (event, context, callback) => {
+const uuid = require('uuid');
+const AWS = require('aws-sdk'); 
+
+AWS.config.setPromisesDependency(require('bluebird'));
+
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+module.exports.bookslist = (event, context, callback) => {
     var params = {
-        TableName: process.env.CANDIDATE_TABLE,
-        ProjectionExpression: "id, fullname, email"
+        TableName: process.env.BOOK_TABLE,
+        ProjectionExpression: "book_id, author, genre"
     };
 
     console.log("Scanning Candidate table.");

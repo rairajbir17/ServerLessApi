@@ -1,46 +1,69 @@
 'use strict';
 
-const doc = require('dynamodb-doc');
-const dynamoDb = new doc.DynamoDB();
+const uuid = require('uuid');
+const AWS = require('aws-sdk'); 
 
-module.exports.item = (event, context, callback) => {
-    const finishThis = (error, data) => callback(null, {
-        statusCode: error ? 400 : 200,
-        headers: {
-            'x-custom-header' : 'custom header value'
-        },
-        body: error ? error.message : JSON.stringify(data)
-    });
+AWS.config.setPromisesDependency(require('bluebird'));
 
-    const path = event.pathParameters;
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-    if (path.itemType === undefined || path.itemType === null || typeof path.itemType !== 'string') {
-        return finishThis(new Error('type in path not specified or invalid.'));
-    }
-    if (path.itemId === undefined || path.itemId === null || typeof path.itemId !== 'string') {
-        return finishThis(new Error('id in path not specified or invalid.'));
-    }
 
-    switch (path.itemType) {
-        case 'books':
-        case 'videos':
-            break;
-        default:
-            return finishThis(new Error('type specified not supported (path).'));
-    }
-    const deleteParams = {
-        TableName: process.env.TABLE_NAME,
-        Key: {
-            "itemId": path.itemId
-        },
-        ReturnValues: "ALL_OLD"
-    };
+module.exports.deletebook = (event, context, callback) => {
+  const params = {
+    TableName: process.env.BOOK_TABLE,
+    Key: {
+      book_id: event.pathParameters.id,
+    },
+  };
 
-    dynamoDb.deleteItem(deleteParams, (err, res) => {
-        if (err) {
-            finishThis(err);
-        } else {
-            finishThis(null, { message: "Item deleted!" });
-        }
+  dynamoDb.deleteItem(params).promise()
+    .then(result => {
+      const response = {
+        statusCode: 200,
+        body: JSON.stringify("Item deleted"),
+      };
+      callback(null, response);
     })
+    .catch(error => {
+      console.error(error);
+      callback(new Error('Couldn\'t fetch candidate.'));
+      return;
+    });
 };
+
+
+
+
+
+
+
+// module.exports.deletebook = (event, context, callback) => {
+//     const errr = (error, data) => callback(null, {
+//         statusCode: error ? 400 : 200,
+//         headers: {
+//             'x-custom-header' : 'custom header value'
+//         },
+//         body: error ? error.message : JSON.stringify(data)
+//     });
+
+//     const path = event.pathParameters;
+
+//     if ( typeof path.id !== 'string') {
+//         return errr(new Error('Id in path not specified or invalid.'));
+//     }
+
+//     const deleteParameters = {
+//         TableName: process.env.BOOK_TABLE,
+//         Key: {
+//             "book_id": event.pathParameters.id,
+//         }
+//     };
+
+//     dynamoDb.deleteItem(deleteParameters, (err, res) => {
+//         if (err) {
+//             errr(err);
+//         } else {
+//             callback(null, { message: "Book Successfully deleted" });
+//         }
+//     })
+// };
