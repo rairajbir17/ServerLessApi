@@ -2,9 +2,6 @@
 
 const uuid = require('uuid');
 const AWS = require('aws-sdk'); 
-
-AWS.config.setPromisesDependency(require('bluebird'));
-
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 
@@ -16,19 +13,23 @@ module.exports.deletebook = (event, context, callback) => {
     },
   };
 
-  dynamoDb.deleteItem(params).promise()
-    .then(result => {
-      const response = {
+
+    console.log("Deleting  item.");
+    dynamoDb.delete(params, function(err, data) {
+    if (err) {
+        console.error("Unable to delete book. Error JSON:", JSON.stringify(err, null, 2));
+        callback(new Error('Couldn\'t delete book.'));
+        return;
+    } else {
+        console.log("Successfully Deleted", JSON.stringify(data, null, 2));
+        const response = {
         statusCode: 200,
-        body: JSON.stringify("Item deleted"),
+        body: JSON.stringify("Book Successfully Deleted", data),
       };
       callback(null, response);
-    })
-    .catch(error => {
-      console.error(error);
-      callback(new Error('Couldn\'t fetch candidate.'));
-      return;
-    });
+
+    }
+});
 };
 
 

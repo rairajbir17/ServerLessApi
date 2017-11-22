@@ -3,8 +3,6 @@
 const uuid = require('uuid');
 const AWS = require('aws-sdk'); 
 
-AWS.config.setPromisesDependency(require('bluebird'));
-
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 module.exports.update = (event, context, callback) => {
@@ -16,38 +14,48 @@ module.exports.update = (event, context, callback) => {
         body: error ? error.message : JSON.stringify(data)
     });
 
-    const path = event.pathParameters;
-    const body = JSON.parse(event.body);
-    if ( typeof path.book_id !== 'string') {
-        return errr(new Error('Id in path not specified or invalid.'));
-    }
-    if (typeof path.bookname !== 'string') {
+    const body = JSON.parse(event.body); 
+    const book_name = body.name;
+    const genre=body.genre;
+    const author=body.author;
+    if (typeof book_name !== 'string') {
         return errr(new Error('Book Name not specified or invalid.'));
     }
 
-    if ( typeof body.genre !== 'string') {
+    if ( typeof genre !== 'string') {
         return errr(new Error('Genre not specified or invalid.'));
     }
-    if (typeof body.author !== 'string') {
+    if (typeof author !== 'string') {
         return errr(new Error('author not specified or invalid.'));
     }
 
     var updateParameters = {
-        TableName: process.env.TABLE_NAME,
+        TableName: process.env.BOOK_TABLE,
         Key: {
-            "book_id": path.id
-        },
-        UpdateExpression: "set name=:p1,bookgenre=:p2, bookauthor=:p3",
-        ReturnValues: "ALL_NEW"
+            book_id: event.pathParameters.id
+        },    
+    UpdateExpression: "set name=:name, genre=:genre, author=:author",
+    ReturnValues:"ALL_NEW"
     };
-
- 
+   
+   updateParameters.ExpressionAttributeValues= {
+      ":name": book_name,
+      ":genre": genre,
+      ":author": author
+    };
 
     dynamoDb.updateItem(updateParameters, (err, data) => {
         if (err) {
-            errr(err);
+            console.error(err);
+            callback(new Error('Couldn\'t update item.'));
+            return;
         } else {
-            errr(null, { message: "Book Succesfullly updated" });
+                console.log("Successfully Updated", JSON.stringify(data, null, 2));
+                const response = {
+                statusCode: 200,
+                body: JSON.stringify("Book Successfully Updated", data),
+                };
+           callback(null, response);
         }
-    })
+    });
 };
